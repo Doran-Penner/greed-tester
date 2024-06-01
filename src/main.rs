@@ -19,21 +19,22 @@
 */
 
 use std::vec::Vec;
+use num_bigint::BigUint;
+use num_traits::cast::ToPrimitive;
 
 
-// TODO we get panic from integer overflow... what to do?
-const TERMINATION_BOUND: f64 = 0.5;
-const WIN_SCORE: usize = 35;
+const TERMINATION_BOUND: f64 = 0.95;
+const WIN_SCORE: usize = 100;
 
 
 #[allow(unused_variables)]
 fn student(score: usize) -> usize {
-    4  // change to see different strategies!
+    3  // change to see different strategies!
 }
 
 
-fn sum(lst: &[usize]) -> usize {
-    let mut ret: usize = 0;
+fn sum(lst: &[BigUint]) -> BigUint {
+    let mut ret: BigUint = BigUint::ZERO;
     for x in lst {
         ret += x;
     }
@@ -81,7 +82,8 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
         }
 
         let final_score: usize = match ones_found {
-            0 => if sum_rolls + curr_score > WIN_SCORE { WIN_SCORE } else { sum_rolls + curr_score },
+            0 => if sum_rolls + curr_score > WIN_SCORE { WIN_SCORE }
+                 else { sum_rolls + curr_score },
             1 => curr_score,
             _ => 0
         };
@@ -91,14 +93,14 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
 }
 
 
-fn next_round(scores: [usize; WIN_SCORE + 1]) -> [usize; WIN_SCORE + 1] {
-    let mut new_scores: [usize; WIN_SCORE + 1] = [0; WIN_SCORE + 1];
+fn next_round(scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
+    let mut new_scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
     for i in 0..WIN_SCORE {
         // NOTE could memoize `student` as well
         let to_roll: usize = student(i);
-        let outcomes = all_worlds(i, to_roll);
+        let outcomes: Vec<usize> = all_worlds(i, to_roll);
         for outcome in outcomes {
-            new_scores[outcome] += scores[i];
+            new_scores[outcome] += scores[i].clone();  // TODO do I need clone?
         }
     }
     new_scores
@@ -107,16 +109,18 @@ fn next_round(scores: [usize; WIN_SCORE + 1]) -> [usize; WIN_SCORE + 1] {
 
 fn main() {
     // scores[n] has the number of "worlds" in which n is the current score
-    let mut scores: [usize; WIN_SCORE + 1] = [0; WIN_SCORE + 1];
-    scores[0] = 1;
+    let mut scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
+    scores[0] = BigUint::from(1 as u8);
     let mut round: usize = 0;
 
     let mut succeeded: f64 = 0.0;
     while succeeded < TERMINATION_BOUND {
         scores = next_round(scores);
 
-        succeeded += (1.0 - succeeded) * scores[WIN_SCORE] as f64 / sum(&scores) as f64;
-        scores[WIN_SCORE] = 0;
+        succeeded += (1.0 - succeeded)
+                   * scores[WIN_SCORE].to_f64().expect("biguint->flaot conversion failure")
+                   / sum(&scores).to_f64().expect("biguint->flaot conversion failure");
+        scores[WIN_SCORE] = BigUint::ZERO;
 
         round += 1;
     }
