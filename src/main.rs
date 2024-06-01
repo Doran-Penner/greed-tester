@@ -23,7 +23,7 @@ use std::vec::Vec;
 
 // TODO we get panic from integer overflow... what to do?
 const TERMINATION_BOUND: f64 = 0.5;
-const WIN_SCORE: usize = 40;
+const WIN_SCORE: usize = 35;
 
 
 #[allow(unused_variables)]
@@ -111,16 +111,15 @@ fn main() {
     scores[0] = 1;
     let mut round: usize = 0;
 
-    let mut percent_success: f64 = 0.0;
-    let mut percent_of_remaining: f64 = 1.0;
-    while percent_success < TERMINATION_BOUND {
+    let mut succeeded: f64 = 0.0;
+    while succeeded < TERMINATION_BOUND {
         scores = next_round(scores);
 
-        percent_success += percent_of_remaining * scores[WIN_SCORE] as f64 / sum(&scores) as f64;
-        percent_of_remaining *= (sum(&scores) - scores[WIN_SCORE]) as f64 / sum(&scores) as f64;
+        succeeded += (1.0 - succeeded) * scores[WIN_SCORE] as f64 / sum(&scores) as f64;
+        scores[WIN_SCORE] = 0;
 
         round += 1;
     }
 
-    println!("Achieved {percent_success}% success in {round} rounds!")
+    println!("Achieved {succeeded}% success in {round} rounds!")
 }
