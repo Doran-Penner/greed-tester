@@ -18,20 +18,17 @@
     as we'd like without promising that it'll get sequential turns.
 */
 
-use std::vec::Vec;
 use num_bigint::BigUint;
 use num_traits::cast::ToPrimitive;
-
+use std::vec::Vec;
 
 const TERMINATION_BOUND: f64 = 0.95;
 const WIN_SCORE: usize = 100;
 
-
 #[allow(unused_variables)]
 fn student(score: usize) -> usize {
-    3  // change to see different strategies!
+    3 // change to see different strategies!
 }
-
 
 fn sum(lst: &[BigUint]) -> BigUint {
     let mut ret: BigUint = BigUint::ZERO;
@@ -40,7 +37,6 @@ fn sum(lst: &[BigUint]) -> BigUint {
     }
     ret
 }
-
 
 fn _gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
     if to_roll == 1 {
@@ -53,18 +49,19 @@ fn _gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
                 list.push(i)
             }
             ret.extend(smaller);
-        };
+        }
         ret
     }
 }
 
-
 fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
-    assert!(to_roll > 0, "Must provide a positive number of dice to roll!");
+    assert!(
+        to_roll > 0,
+        "Must provide a positive number of dice to roll!"
+    );
     // NOTE could memoize these calls for more performance if needed
     _gen_rolls(to_roll)
 }
-
 
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
     let all_rolls: Vec<Vec<usize>> = gen_rolls(to_roll);
@@ -82,16 +79,20 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
         }
 
         let final_score: usize = match ones_found {
-            0 => if sum_rolls + curr_score > WIN_SCORE { WIN_SCORE }
-                 else { sum_rolls + curr_score },
+            0 => {
+                if sum_rolls + curr_score > WIN_SCORE {
+                    WIN_SCORE
+                } else {
+                    sum_rolls + curr_score
+                }
+            }
             1 => curr_score,
-            _ => 0
+            _ => 0,
         };
         ret.push(final_score)
     }
     ret
 }
-
 
 fn next_round(scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
     let mut new_scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
@@ -100,12 +101,11 @@ fn next_round(scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
         let to_roll: usize = student(i);
         let outcomes: Vec<usize> = all_worlds(i, to_roll);
         for outcome in outcomes {
-            new_scores[outcome] += scores[i].clone();  // TODO do I need clone?
+            new_scores[outcome] += &scores[i];
         }
     }
     new_scores
 }
-
 
 fn main() {
     // scores[n] has the number of "worlds" in which n is the current score
@@ -118,8 +118,12 @@ fn main() {
         scores = next_round(scores);
 
         succeeded += (1.0 - succeeded)
-                   * scores[WIN_SCORE].to_f64().expect("biguint->flaot conversion failure")
-                   / sum(&scores).to_f64().expect("biguint->flaot conversion failure");
+            * scores[WIN_SCORE]
+                .to_f64()
+                .expect("biguint->flaot conversion failure")
+            / sum(&scores)
+                .to_f64()
+                .expect("biguint->flaot conversion failure");
         scores[WIN_SCORE] = BigUint::ZERO;
 
         round += 1;
