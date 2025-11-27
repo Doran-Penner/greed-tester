@@ -30,21 +30,18 @@ fn student(score: usize) -> usize {
     3 // change to see different strategies!
 }
 
-fn sum(lst: &[BigUint]) -> BigUint {
-    let mut ret: BigUint = BigUint::ZERO;
-    for x in lst {
-        ret += x;
-    }
-    ret
-}
-
-fn _gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
+// NOTE could memoize these calls for more performance if needed
+fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
+    assert!(
+        to_roll > 0,
+        "Must provide a positive number of dice to roll!"
+    );
     if to_roll == 1 {
         vec![vec![1], vec![2], vec![3], vec![4], vec![5], vec![6]]
     } else {
         let mut ret: Vec<Vec<usize>> = Vec::new();
         for i in 1..=6 {
-            let mut smaller: Vec<Vec<usize>> = _gen_rolls(to_roll - 1);
+            let mut smaller: Vec<Vec<usize>> = gen_rolls(to_roll - 1);
             for list in &mut smaller {
                 list.push(i)
             }
@@ -52,15 +49,6 @@ fn _gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
         }
         ret
     }
-}
-
-fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
-    assert!(
-        to_roll > 0,
-        "Must provide a positive number of dice to roll!"
-    );
-    // NOTE could memoize these calls for more performance if needed
-    _gen_rolls(to_roll)
 }
 
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
@@ -96,12 +84,12 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
 
 fn next_round(scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
     let mut new_scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
-    for i in 0..WIN_SCORE {
+    for (i, score) in scores.iter().enumerate().take(WIN_SCORE) {
         // NOTE could memoize `student` as well
         let to_roll: usize = student(i);
         let outcomes: Vec<usize> = all_worlds(i, to_roll);
         for outcome in outcomes {
-            new_scores[outcome] += &scores[i];
+            new_scores[outcome] += score;
         }
     }
     new_scores
@@ -110,7 +98,7 @@ fn next_round(scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
 fn main() {
     // scores[n] has the number of "worlds" in which n is the current score
     let mut scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
-    scores[0] = BigUint::from(1 as u8);
+    scores[0] = BigUint::from(1u8);
     let mut round: usize = 0;
 
     let mut succeeded: f64 = 0.0;
@@ -121,7 +109,9 @@ fn main() {
             * scores[WIN_SCORE]
                 .to_f64()
                 .expect("biguint->flaot conversion failure")
-            / sum(&scores)
+            / scores
+                .iter()
+                .sum::<BigUint>()
                 .to_f64()
                 .expect("biguint->flaot conversion failure");
         scores[WIN_SCORE] = BigUint::ZERO;
@@ -129,5 +119,5 @@ fn main() {
         round += 1;
     }
 
-    println!("Achieved {succeeded}% success in {round} rounds!")
+    println!("Achieved {succeeded:.3} success in {round} rounds!")
 }
