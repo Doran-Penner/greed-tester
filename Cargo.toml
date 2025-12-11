@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+dashu-base = "0.4.1"
+dashu-ratio = "0.4.1"
 itertools = "0.14.0"
-num-bigint = "0.4.5"
-num-traits = "0.2.19"

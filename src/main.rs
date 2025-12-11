@@ -14,38 +14,41 @@
     `TERMINATION_BOUND` declares the percentage of completeness at which the simulation
     should stop. For example, if it equals 0.5, then this program will stop when 50% of
     the scenarios have completed the game and report how many rounds it took.
+    In the future we'll show some distribution of percent succeeded at each round.
     Assumes that the student's function is "pure," so we can rerun it as many times
     as we'd like without promising that it'll get sequential turns.
 */
 
+use dashu_ratio::RBig;
 use itertools::Itertools;
-use num_bigint::BigUint;
-use num_traits::cast::ToPrimitive;
 use std::vec::Vec;
 
-const TERMINATION_BOUND: f64 = 0.95;
+const TERMINATION_BOUND: RBig = frac_rbig(99, 100);
 const WIN_SCORE: usize = 100;
 
 #[allow(unused_variables)]
 const fn student(score: usize) -> usize {
-    3 // change to see different strategies!
+    match score {
+        0 => 4,
+        _ => 1,
+    }
 }
 
-const STUDENT_ANSWERS: [usize; WIN_SCORE] = student_list::<WIN_SCORE>();
-
-const fn student_list<const N: usize>() -> [usize; N] {
-    let mut rolled = [0; N];
+const STUDENT_ANSWERS: [usize; WIN_SCORE] = {
+    let mut rolled = [0; WIN_SCORE];
     let mut i = 0;
     let mut stud_ret;
-    while i < N {
+    while i < WIN_SCORE {
         stud_ret = student(i);
-        if stud_ret == 0 {
-            panic!("Student can never return 0 dice to roll!")
-        }
+        assert!(!(stud_ret == 0), "Student can never return 0 dice to roll!");
         rolled[i] = stud_ret;
         i += 1;
     }
     rolled
+};
+
+const fn frac_rbig(numerator: u128, denominator: u128) -> RBig {
+    RBig::from_parts_const(dashu_base::Sign::Positive, numerator, denominator)
 }
 
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
@@ -73,41 +76,38 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
         .collect()
 }
 
-fn next_round(old_scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
-    let mut new_scores = [BigUint::ZERO; WIN_SCORE + 1];
+fn next_round(old_scores: &[RBig; WIN_SCORE + 1]) -> [RBig; WIN_SCORE + 1] {
+    let mut new_scores = [RBig::ZERO; WIN_SCORE + 1];
     for (i, old_score) in old_scores.iter().enumerate().take(WIN_SCORE) {
         let to_roll: usize = STUDENT_ANSWERS[i];
+        let num_worlds: RBig = frac_rbig(6, 1).pow(to_roll);
+
         let outcomes: Vec<usize> = all_worlds(i, to_roll);
         for outcome in outcomes {
-            new_scores[outcome] += old_score;
+            new_scores[outcome] += old_score / &num_worlds;
         }
     }
+    new_scores[WIN_SCORE] += &old_scores[WIN_SCORE];
     new_scores
 }
 
 fn main() {
-    // scores[n] has the number of "worlds" in which n is the current score
-    let mut scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
-    scores[0] = BigUint::from(1u8);
-    let mut round: usize = 0;
+    // scores[n] has the fraction of "worlds" in which n is the current score
+    let mut scores: [RBig; WIN_SCORE + 1] = [RBig::ZERO; WIN_SCORE + 1];
+    scores[0] = frac_rbig(1, 1);
+    // fraction of succeeded after round i+1
+    // not used right now but I want it for the future
+    // to show a distribution of when you won or something
+    let mut successes: Vec<RBig> = vec![];
 
-    let mut succeeded: f64 = 0.0;
-    while succeeded < TERMINATION_BOUND {
-        scores = next_round(scores);
-
-        succeeded += (1.0 - succeeded)
-            * scores[WIN_SCORE]
-                .to_f64()
-                .expect("biguint->float conversion failure")
-            / scores
-                .iter()
-                .sum::<BigUint>()
-                .to_f64()
-                .expect("biguint->float conversion failure");
-        scores[WIN_SCORE] = BigUint::ZERO;
-
-        round += 1;
+    while scores[WIN_SCORE] < TERMINATION_BOUND {
+        scores = next_round(&scores);
+        successes.push(scores[WIN_SCORE].clone());
     }
 
-    println!("Achieved {succeeded:.3} success in {round} rounds!")
+    println!(
+        "Surpassed {} success in {} rounds!",
+        TERMINATION_BOUND.to_f32_fast(),
+        successes.len(),
+    );
 }
