@@ -14,21 +14,24 @@
     `TERMINATION_BOUND` declares the percentage of completeness at which the simulation
     should stop. For example, if it equals 0.5, then this program will stop when 50% of
     the scenarios have completed the game and report how many rounds it took.
+    In the future we'll show some distribution of percent succeeded at each round.
     Assumes that the student's function is "pure," so we can rerun it as many times
     as we'd like without promising that it'll get sequential turns.
 */
 
+use dashu_ratio::RBig;
 use itertools::Itertools;
-use num_bigint::BigUint;
-use num_traits::cast::ToPrimitive;
 use std::vec::Vec;
 
-const TERMINATION_BOUND: f64 = 0.95;
+const TERMINATION_BOUND: RBig = frac_rbig(99, 100);
 const WIN_SCORE: usize = 100;
 
 #[allow(unused_variables)]
 const fn student(score: usize) -> usize {
-    3 // change to see different strategies!
+    match score {
+        0 => 4,
+        _ => 1,
+    }
 }
 
 const STUDENT_ANSWERS: [usize; WIN_SCORE] = {
@@ -43,6 +46,10 @@ const STUDENT_ANSWERS: [usize; WIN_SCORE] = {
     }
     rolled
 };
+
+const fn frac_rbig(numerator: u128, denominator: u128) -> RBig {
+    RBig::from_parts_const(dashu_base::Sign::Positive, numerator, denominator)
+}
 
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
     use itertools::FoldWhile;
@@ -69,64 +76,38 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
         .collect()
 }
 
-fn next_round(old_scores: &[BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
-    let mut new_scores = [BigUint::ZERO; WIN_SCORE + 1];
+fn next_round(old_scores: &[RBig; WIN_SCORE + 1]) -> [RBig; WIN_SCORE + 1] {
+    let mut new_scores = [RBig::ZERO; WIN_SCORE + 1];
     for (i, old_score) in old_scores.iter().enumerate().take(WIN_SCORE) {
         let to_roll: usize = STUDENT_ANSWERS[i];
+        let num_worlds: RBig = frac_rbig(6, 1).pow(to_roll);
+
         let outcomes: Vec<usize> = all_worlds(i, to_roll);
         for outcome in outcomes {
-            new_scores[outcome] += old_score;
+            new_scores[outcome] += old_score / &num_worlds;
         }
     }
+    new_scores[WIN_SCORE] += &old_scores[WIN_SCORE];
     new_scores
 }
 
-fn win_percent(percents: &Vec<(BigUint, BigUint)>) -> f64 {
-    let mut base: f64 = 0.0;
-    for (numer, denom) in percents {
-        base += (1.0 - base) * (numer.to_f64().unwrap()) / (denom.to_f64().unwrap());
-    }
-    base
-}
-
-// OH NO my logic is all wrong
-// specifically if they can variably output multiple numbers (e.g. 1 or 2),
-// my code sees each outcome of 2 to be equally likely as each outcome of 1
-// when in reality (3, 5) is a 1/36 chance whereas (3) is a 1/6 chance
-//
-// dangit
-//
-// how do we fix this
-// first thought is to actually store floats in the array instead of biguint
-// design such that the sum of all array elements is always 1
-// use a big float/rational crate for this:
-// https://crates.io/crates/astro-float
-// https://crates.io/crates/dashu-float
-// https://crates.io/crates/dashu-ratio
-// https://crates.io/crates/rational
-
 fn main() {
-    // scores[n] has the number of "worlds" in which n is the current score
-    let mut scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
-    scores[0] = BigUint::from(1_u8);
+    // scores[n] has the fraction of "worlds" in which n is the current score
+    let mut scores: [RBig; WIN_SCORE + 1] = [RBig::ZERO; WIN_SCORE + 1];
+    scores[0] = frac_rbig(1, 1);
+    // fraction of succeeded after round i+1
+    // not used right now but I want it for the future
+    // to show a distribution of when you won or something
+    let mut successes: Vec<RBig> = vec![];
 
-    // store as rationals because float imprecision is getting us
-    let mut successes: Vec<(BigUint, BigUint)> = vec![];
-    let mut how_many_have_won = win_percent(&successes);
-
-    while how_many_have_won < TERMINATION_BOUND {
+    while scores[WIN_SCORE] < TERMINATION_BOUND {
         scores = next_round(&scores);
-
-        successes.push((scores[WIN_SCORE].clone(), scores.iter().sum::<BigUint>()));
-
-        scores[WIN_SCORE] = BigUint::ZERO;
-
-        how_many_have_won = win_percent(&successes);
+        successes.push(scores[WIN_SCORE].clone());
     }
 
     println!(
-        "Achieved {:.3} success in {} rounds!",
-        how_many_have_won,
-        successes.len()
+        "Surpassed {} success in {} rounds!",
+        TERMINATION_BOUND.to_f32_fast(),
+        successes.len(),
     );
 }
