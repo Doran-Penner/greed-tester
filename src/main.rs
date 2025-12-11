@@ -52,34 +52,25 @@ fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
 }
 
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
-    let all_rolls: Vec<Vec<usize>> = gen_rolls(to_roll);
-    let mut ret: Vec<usize> = Vec::new();
-
-    for set_of_rolls in all_rolls {
-        let mut ones_found: usize = 0;
-        let mut sum_rolls: usize = 0;
-        for roll in set_of_rolls {
-            if roll == 1 {
-                ones_found += 1;
-            } else {
-                sum_rolls += roll;
+    gen_rolls(to_roll)
+        .iter()
+        .map(|set_of_rolls| {
+            let added_score: Result<Option<usize>, ()> =
+                set_of_rolls
+                    .iter()
+                    .try_fold(Some(0), |acc: Option<usize>, new| match (new, acc) {
+                        (1, Some(_)) => Ok(None),
+                        (1, None) => Err(()),
+                        (x, Some(y)) => Ok(Some(x + y)),
+                        (_, None) => Ok(None),
+                    });
+            match added_score {
+                Ok(Some(x)) => (x + curr_score).min(WIN_SCORE),
+                Ok(None) => curr_score,
+                Err(()) => 0,
             }
-        }
-
-        let final_score: usize = match ones_found {
-            0 => {
-                if sum_rolls + curr_score > WIN_SCORE {
-                    WIN_SCORE
-                } else {
-                    sum_rolls + curr_score
-                }
-            }
-            1 => curr_score,
-            _ => 0,
-        };
-        ret.push(final_score)
-    }
-    ret
+        })
+        .collect()
 }
 
 fn next_round(scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
