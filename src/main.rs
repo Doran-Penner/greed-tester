@@ -81,29 +81,36 @@ fn next_round(old_scores: &[BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1]
     new_scores
 }
 
+fn win_percent(percents: &Vec<(BigUint, BigUint)>) -> f64 {
+    let mut base: f64 = 0.0;
+    for (numer, denom) in percents {
+        base += (1.0 - base) * (numer.to_f64().unwrap()) / (denom.to_f64().unwrap());
+    }
+    base
+}
+
 fn main() {
     // scores[n] has the number of "worlds" in which n is the current score
     let mut scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
     scores[0] = BigUint::from(1_u8);
-    let mut round: usize = 0;
 
-    let mut succeeded: f64 = 0.0;
-    while succeeded < TERMINATION_BOUND {
+    // store as rationals because float imprecision is getting us
+    let mut successes: Vec<(BigUint, BigUint)> = vec![];
+    let mut how_many_have_won = win_percent(&successes);
+
+    while how_many_have_won < TERMINATION_BOUND {
         scores = next_round(&scores);
 
-        succeeded += (1.0 - succeeded)
-            * scores[WIN_SCORE]
-                .to_f64()
-                .expect("biguint->float conversion failure")
-            / scores
-                .iter()
-                .sum::<BigUint>()
-                .to_f64()
-                .expect("biguint->float conversion failure");
+        successes.push((scores[WIN_SCORE].clone(), scores.iter().sum::<BigUint>()));
+
         scores[WIN_SCORE] = BigUint::ZERO;
 
-        round += 1;
+        how_many_have_won = win_percent(&successes);
     }
 
-    println!("Achieved {succeeded:.3} success in {round} rounds!");
+    println!(
+        "Achieved {:.3} success in {} rounds!",
+        how_many_have_won,
+        successes.len()
+    );
 }
