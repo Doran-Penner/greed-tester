@@ -18,6 +18,7 @@
     as we'd like without promising that it'll get sequential turns.
 */
 
+use itertools::Itertools;
 use num_bigint::BigUint;
 use num_traits::cast::ToPrimitive;
 use std::vec::Vec;
@@ -48,21 +49,10 @@ const fn student_list<const N: usize>() -> [usize; N] {
 }
 
 fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
-    assert!(
-        to_roll > 0,
-        "Must provide a positive number of dice to roll!"
-    );
-    if to_roll == 1 {
-        vec![vec![1], vec![2], vec![3], vec![4], vec![5], vec![6]]
-    } else {
-        (1..=6)
-            .flat_map(|i| {
-                let mut smaller: Vec<Vec<usize>> = gen_rolls(to_roll - 1);
-                smaller.iter_mut().for_each(|list| list.push(i));
-                smaller
-            })
-            .collect()
-    }
+    (0..to_roll)
+        .map(|_| 1..=6)
+        .multi_cartesian_product()
+        .collect()
 }
 
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
