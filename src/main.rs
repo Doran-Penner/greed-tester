@@ -48,19 +48,12 @@ const fn student_list<const N: usize>() -> [usize; N] {
     rolled
 }
 
-fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
-    (0..to_roll)
-        .map(|_| 1..=6)
-        .multi_cartesian_product()
-        .collect()
-}
-
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
     use itertools::FoldWhile;
     use itertools::FoldWhile::{Continue, Done};
 
-    gen_rolls(to_roll)
-        .iter()
+    std::iter::repeat_n(1..=6, to_roll)
+        .multi_cartesian_product()
         .map(|set_of_rolls| {
             let added_score: FoldWhile<Option<usize>> =
                 set_of_rolls
