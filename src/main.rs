@@ -31,22 +31,18 @@ const fn student(score: usize) -> usize {
     3 // change to see different strategies!
 }
 
-const STUDENT_ANSWERS: [usize; WIN_SCORE] = student_list::<WIN_SCORE>();
-
-const fn student_list<const N: usize>() -> [usize; N] {
-    let mut rolled = [0; N];
+const STUDENT_ANSWERS: [usize; WIN_SCORE] = {
+    let mut rolled = [0; WIN_SCORE];
     let mut i = 0;
     let mut stud_ret;
-    while i < N {
+    while i < WIN_SCORE {
         stud_ret = student(i);
-        if stud_ret == 0 {
-            panic!("Student can never return 0 dice to roll!")
-        }
+        assert!(!(stud_ret == 0), "Student can never return 0 dice to roll!");
         rolled[i] = stud_ret;
         i += 1;
     }
     rolled
-}
+};
 
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
     use itertools::FoldWhile;
@@ -73,7 +69,7 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
         .collect()
 }
 
-fn next_round(old_scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
+fn next_round(old_scores: &[BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
     let mut new_scores = [BigUint::ZERO; WIN_SCORE + 1];
     for (i, old_score) in old_scores.iter().enumerate().take(WIN_SCORE) {
         let to_roll: usize = STUDENT_ANSWERS[i];
@@ -88,12 +84,12 @@ fn next_round(old_scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] 
 fn main() {
     // scores[n] has the number of "worlds" in which n is the current score
     let mut scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
-    scores[0] = BigUint::from(1u8);
+    scores[0] = BigUint::from(1_u8);
     let mut round: usize = 0;
 
     let mut succeeded: f64 = 0.0;
     while succeeded < TERMINATION_BOUND {
-        scores = next_round(scores);
+        scores = next_round(&scores);
 
         succeeded += (1.0 - succeeded)
             * scores[WIN_SCORE]
@@ -109,5 +105,5 @@ fn main() {
         round += 1;
     }
 
-    println!("Achieved {succeeded:.3} success in {round} rounds!")
+    println!("Achieved {succeeded:.3} success in {round} rounds!");
 }
