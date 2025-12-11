@@ -39,15 +39,13 @@ fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
     if to_roll == 1 {
         vec![vec![1], vec![2], vec![3], vec![4], vec![5], vec![6]]
     } else {
-        let mut ret: Vec<Vec<usize>> = Vec::new();
-        for i in 1..=6 {
-            let mut smaller: Vec<Vec<usize>> = gen_rolls(to_roll - 1);
-            for list in &mut smaller {
-                list.push(i)
-            }
-            ret.extend(smaller);
-        }
-        ret
+        (1..=6)
+            .flat_map(|i| {
+                let mut smaller: Vec<Vec<usize>> = gen_rolls(to_roll - 1);
+                smaller.iter_mut().for_each(|list| list.push(i));
+                smaller
+            })
+            .collect()
     }
 }
 
@@ -55,15 +53,16 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
     gen_rolls(to_roll)
         .iter()
         .map(|set_of_rolls| {
-            let added_score: Option<Option<usize>> =
-                set_of_rolls
-                    .iter()
-                    .try_fold(Some(0), |acc: Option<usize>, new| match (new, acc) {
-                        (1, Some(_)) => Some(None),
-                        (1, None) => None,
-                        (x, Some(y)) => Some(Some(x + y)),
-                        (_, None) => Some(None),
-                    });
+            let added_score: Option<Option<usize>> = set_of_rolls
+                .iter()
+                // we abuse try_fold to get short-circuiting fold;
+                // could use itertools.fold_while but whatever
+                .try_fold(Some(0), |acc: Option<usize>, new| match (new, acc) {
+                    (1, Some(_)) => Some(None),
+                    (1, None) => None,
+                    (x, Some(y)) => Some(Some(x + y)),
+                    (_, None) => Some(None),
+                });
             match added_score {
                 Some(Some(x)) => (x + curr_score).min(WIN_SCORE),
                 Some(None) => curr_score,
@@ -99,12 +98,12 @@ fn main() {
         succeeded += (1.0 - succeeded)
             * scores[WIN_SCORE]
                 .to_f64()
-                .expect("biguint->flaot conversion failure")
+                .expect("biguint->float conversion failure")
             / scores
                 .iter()
                 .sum::<BigUint>()
                 .to_f64()
-                .expect("biguint->flaot conversion failure");
+                .expect("biguint->float conversion failure");
         scores[WIN_SCORE] = BigUint::ZERO;
 
         round += 1;
