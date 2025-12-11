@@ -89,6 +89,22 @@ fn win_percent(percents: &Vec<(BigUint, BigUint)>) -> f64 {
     base
 }
 
+// OH NO my logic is all wrong
+// specifically if they can variably output multiple numbers (e.g. 1 or 2),
+// my code sees each outcome of 2 to be equally likely as each outcome of 1
+// when in reality (3, 5) is a 1/36 chance whereas (3) is a 1/6 chance
+//
+// dangit
+//
+// how do we fix this
+// first thought is to actually store floats in the array instead of biguint
+// design such that the sum of all array elements is always 1
+// use a big float/rational crate for this:
+// https://crates.io/crates/astro-float
+// https://crates.io/crates/dashu-float
+// https://crates.io/crates/dashu-ratio
+// https://crates.io/crates/rational
+
 fn main() {
     // scores[n] has the number of "worlds" in which n is the current score
     let mut scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
