@@ -18,6 +18,7 @@
     as we'd like without promising that it'll get sequential turns.
 */
 
+use itertools::Itertools;
 use num_bigint::BigUint;
 use num_traits::cast::ToPrimitive;
 use std::vec::Vec;
@@ -26,70 +27,59 @@ const TERMINATION_BOUND: f64 = 0.95;
 const WIN_SCORE: usize = 100;
 
 #[allow(unused_variables)]
-fn student(score: usize) -> usize {
+const fn student(score: usize) -> usize {
     3 // change to see different strategies!
 }
 
-// NOTE could memoize these calls for more performance if needed
-fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
-    assert!(
-        to_roll > 0,
-        "Must provide a positive number of dice to roll!"
-    );
-    if to_roll == 1 {
-        vec![vec![1], vec![2], vec![3], vec![4], vec![5], vec![6]]
-    } else {
-        let mut ret: Vec<Vec<usize>> = Vec::new();
-        for i in 1..=6 {
-            let mut smaller: Vec<Vec<usize>> = gen_rolls(to_roll - 1);
-            for list in &mut smaller {
-                list.push(i)
-            }
-            ret.extend(smaller);
+const STUDENT_ANSWERS: [usize; WIN_SCORE] = student_list::<WIN_SCORE>();
+
+const fn student_list<const N: usize>() -> [usize; N] {
+    let mut rolled = [0; N];
+    let mut i = 0;
+    let mut stud_ret;
+    while i < N {
+        stud_ret = student(i);
+        if stud_ret == 0 {
+            panic!("Student can never return 0 dice to roll!")
         }
-        ret
+        rolled[i] = stud_ret;
+        i += 1;
     }
+    rolled
 }
 
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
-    let all_rolls: Vec<Vec<usize>> = gen_rolls(to_roll);
-    let mut ret: Vec<usize> = Vec::new();
+    use itertools::FoldWhile;
+    use itertools::FoldWhile::{Continue, Done};
 
-    for set_of_rolls in all_rolls {
-        let mut ones_found: usize = 0;
-        let mut sum_rolls: usize = 0;
-        for roll in set_of_rolls {
-            if roll == 1 {
-                ones_found += 1;
-            } else {
-                sum_rolls += roll;
+    std::iter::repeat_n(1..=6, to_roll)
+        .multi_cartesian_product()
+        .map(|set_of_rolls| {
+            let added_score: FoldWhile<Option<usize>> =
+                set_of_rolls
+                    .iter()
+                    .fold_while(Some(0), |acc, new| match (new, acc) {
+                        (1, Some(_)) => Continue(None),
+                        (1, None) => Done(None),
+                        (x, Some(y)) => Continue(Some(x + y)),
+                        (_, None) => Continue(None),
+                    });
+            match added_score {
+                Continue(Some(x)) => (x + curr_score).min(WIN_SCORE),
+                Continue(None) => curr_score,
+                Done(_) => 0,
             }
-        }
-
-        let final_score: usize = match ones_found {
-            0 => {
-                if sum_rolls + curr_score > WIN_SCORE {
-                    WIN_SCORE
-                } else {
-                    sum_rolls + curr_score
-                }
-            }
-            1 => curr_score,
-            _ => 0,
-        };
-        ret.push(final_score)
-    }
-    ret
+        })
+        .collect()
 }
 
-fn next_round(scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
-    let mut new_scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
-    for (i, score) in scores.iter().enumerate().take(WIN_SCORE) {
-        // NOTE could memoize `student` as well
-        let to_roll: usize = student(i);
+fn next_round(old_scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
+    let mut new_scores = [BigUint::ZERO; WIN_SCORE + 1];
+    for (i, old_score) in old_scores.iter().enumerate().take(WIN_SCORE) {
+        let to_roll: usize = STUDENT_ANSWERS[i];
         let outcomes: Vec<usize> = all_worlds(i, to_roll);
         for outcome in outcomes {
-            new_scores[outcome] += score;
+            new_scores[outcome] += old_score;
         }
     }
     new_scores
@@ -108,12 +98,12 @@ fn main() {
         succeeded += (1.0 - succeeded)
             * scores[WIN_SCORE]
                 .to_f64()
-                .expect("biguint->flaot conversion failure")
+                .expect("biguint->float conversion failure")
             / scores
                 .iter()
                 .sum::<BigUint>()
                 .to_f64()
-                .expect("biguint->flaot conversion failure");
+                .expect("biguint->float conversion failure");
         scores[WIN_SCORE] = BigUint::ZERO;
 
         round += 1;
