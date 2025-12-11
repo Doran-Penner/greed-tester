@@ -26,11 +26,27 @@ const TERMINATION_BOUND: f64 = 0.95;
 const WIN_SCORE: usize = 100;
 
 #[allow(unused_variables)]
-fn student(score: usize) -> usize {
+const fn student(score: usize) -> usize {
     3 // change to see different strategies!
 }
 
-// NOTE could memoize these calls for more performance if needed
+const STUDENT_ANSWERS: [usize; WIN_SCORE] = student_list::<WIN_SCORE>();
+
+const fn student_list<const N: usize>() -> [usize; N] {
+    let mut rolled = [0; N];
+    let mut i = 0;
+    let mut stud_ret;
+    while i < N {
+        stud_ret = student(i);
+        if stud_ret == 0 {
+            panic!("Student can never return 0 dice to roll!")
+        }
+        rolled[i] = stud_ret;
+        i += 1;
+    }
+    rolled
+}
+
 fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
     assert!(
         to_roll > 0,
@@ -57,12 +73,17 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
                 .iter()
                 // we abuse try_fold to get short-circuiting fold;
                 // could use itertools.fold_while but whatever
-                .try_fold(Some(0), |acc: Option<usize>, new| match (new, acc) {
-                    (1, Some(_)) => Some(None),
-                    (1, None) => None,
-                    (x, Some(y)) => Some(Some(x + y)),
-                    (_, None) => Some(None),
-                });
+                .try_fold(
+                    Some(0),
+                    |acc: Option<usize>, new| -> Option<Option<usize>> {
+                        match (new, acc) {
+                            (1, Some(_)) => Some(None),
+                            (1, None) => None,
+                            (x, Some(y)) => Some(Some(x + y)),
+                            (_, None) => Some(None),
+                        }
+                    },
+                );
             match added_score {
                 Some(Some(x)) => (x + curr_score).min(WIN_SCORE),
                 Some(None) => curr_score,
@@ -72,14 +93,13 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
         .collect()
 }
 
-fn next_round(scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
-    let mut new_scores: [BigUint; WIN_SCORE + 1] = [BigUint::ZERO; WIN_SCORE + 1];
-    for (i, score) in scores.iter().enumerate().take(WIN_SCORE) {
-        // NOTE could memoize `student` as well
-        let to_roll: usize = student(i);
+fn next_round(old_scores: [BigUint; WIN_SCORE + 1]) -> [BigUint; WIN_SCORE + 1] {
+    let mut new_scores = [BigUint::ZERO; WIN_SCORE + 1];
+    for (i, old_score) in old_scores.iter().enumerate().take(WIN_SCORE) {
+        let to_roll: usize = STUDENT_ANSWERS[i];
         let outcomes: Vec<usize> = all_worlds(i, to_roll);
         for outcome in outcomes {
-            new_scores[outcome] += score;
+            new_scores[outcome] += old_score;
         }
     }
     new_scores
