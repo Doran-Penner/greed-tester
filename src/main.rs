@@ -56,28 +56,25 @@ fn gen_rolls(to_roll: usize) -> Vec<Vec<usize>> {
 }
 
 fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
+    use itertools::FoldWhile;
+    use itertools::FoldWhile::{Continue, Done};
+
     gen_rolls(to_roll)
         .iter()
         .map(|set_of_rolls| {
-            let added_score: Option<Option<usize>> = set_of_rolls
-                .iter()
-                // we abuse try_fold to get short-circuiting fold;
-                // could use itertools.fold_while but whatever
-                .try_fold(
-                    Some(0),
-                    |acc: Option<usize>, new| -> Option<Option<usize>> {
-                        match (new, acc) {
-                            (1, Some(_)) => Some(None),
-                            (1, None) => None,
-                            (x, Some(y)) => Some(Some(x + y)),
-                            (_, None) => Some(None),
-                        }
-                    },
-                );
+            let added_score: FoldWhile<Option<usize>> =
+                set_of_rolls
+                    .iter()
+                    .fold_while(Some(0), |acc, new| match (new, acc) {
+                        (1, Some(_)) => Continue(None),
+                        (1, None) => Done(None),
+                        (x, Some(y)) => Continue(Some(x + y)),
+                        (_, None) => Continue(None),
+                    });
             match added_score {
-                Some(Some(x)) => (x + curr_score).min(WIN_SCORE),
-                Some(None) => curr_score,
-                None => 0,
+                Continue(Some(x)) => (x + curr_score).min(WIN_SCORE),
+                Continue(None) => curr_score,
+                Done(_) => 0,
             }
         })
         .collect()
