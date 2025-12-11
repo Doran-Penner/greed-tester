@@ -55,19 +55,19 @@ fn all_worlds(curr_score: usize, to_roll: usize) -> Vec<usize> {
     gen_rolls(to_roll)
         .iter()
         .map(|set_of_rolls| {
-            let added_score: Result<Option<usize>, ()> =
+            let added_score: Option<Option<usize>> =
                 set_of_rolls
                     .iter()
                     .try_fold(Some(0), |acc: Option<usize>, new| match (new, acc) {
-                        (1, Some(_)) => Ok(None),
-                        (1, None) => Err(()),
-                        (x, Some(y)) => Ok(Some(x + y)),
-                        (_, None) => Ok(None),
+                        (1, Some(_)) => Some(None),
+                        (1, None) => None,
+                        (x, Some(y)) => Some(Some(x + y)),
+                        (_, None) => Some(None),
                     });
             match added_score {
-                Ok(Some(x)) => (x + curr_score).min(WIN_SCORE),
-                Ok(None) => curr_score,
-                Err(()) => 0,
+                Some(Some(x)) => (x + curr_score).min(WIN_SCORE),
+                Some(None) => curr_score,
+                None => 0,
             }
         })
         .collect()
